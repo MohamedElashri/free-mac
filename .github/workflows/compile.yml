@@ -15,5 +15,5 @@ jobs:
     - uses: actions/checkout@v3
     - name: make check
       run: make test
-    - name: make release
-      run: make release
+    - name: Run the tool
+      run: ./free
