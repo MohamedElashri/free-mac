@@ -1,3 +1,5 @@
+[![Compiling and testing CI](https://github.com/MohamedElashri/free-mac/actions/workflows/compile.yml/badge.svg)](https://github.com/MohamedElashri/free-mac/actions/workflows/compile.yml)
+
 # Free Command for macOS
 
 ## Overview
