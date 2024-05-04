@@ -2,7 +2,8 @@
 #include "format_utils.h"
 
 void format_bytes(unsigned long long bytes, char *buffer, int buffer_size, int human, int si, int unit) {
-    const char *suffixes[] = {"B", "K", "M", "G", "T", "P"};
+    const char *suffixes[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB"};
+    const char *si_suffixes[] = {"B", "KB", "MB", "GB", "TB", "PB"};
     int suffixIndex = 0;
     double result = bytes;
 
@@ -19,7 +20,7 @@ void format_bytes(unsigned long long bytes, char *buffer, int buffer_size, int h
             result /= (si ? 1000.0 : 1024.0);
             suffixIndex++;
         }
-        if (snprintf(buffer, buffer_size, "%.2f %s", result, (si ? suffixes : suffixes)[suffixIndex]) >= buffer_size) {
+        if (snprintf(buffer, buffer_size, "%.2f %s", result, (si ? si_suffixes : suffixes)[suffixIndex]) >= buffer_size) {
             fprintf(stderr, "Error: Buffer size too small for formatting bytes\n");
         }
     }
