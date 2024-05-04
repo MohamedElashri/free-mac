@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -Werror
-SOURCES=free.c
+SOURCES=main.c memory_info.c format_utils.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=free
 
@@ -14,10 +14,10 @@ test: LDFLAGS += -fsanitize=address
 test: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+    $(CC) $(LDFLAGS) $(OBJECTS) -o $@
 
 .c.o:
-	$(CC) -c $(CFLAGS) $< -o $@
+    $(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-	rm -f $(OBJECTS) $(EXECUTABLE)
+    rm -f $(OBJECTS) $(EXECUTABLE)
