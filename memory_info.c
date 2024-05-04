@@ -39,7 +39,8 @@ MemoryInfo get_memory_info() {
     unsigned long long app_memory = (unsigned long long)(vm_stat.internal_page_count - vm_stat.purgeable_count) * page_size;
     unsigned long long cached_memory = (unsigned long long)(vm_stat.purgeable_count + vm_stat.external_page_count) * page_size;
     unsigned long long used_memory = total_memory - free_memory - cached_memory;
-
+    unsigned long long shared_memory = 0;
+    unsigned long long available_memory = free_memory + cached_memory;
     // Get swap information
     struct xsw_usage swapinfo;
     size_t swapinfo_sz = sizeof(swapinfo);
@@ -69,11 +70,14 @@ MemoryInfo get_memory_info() {
         .app_memory = app_memory,
         .cached_memory = cached_memory,
         .used_memory = used_memory,
+        .shared_memory = shared_memory,
+        .available_memory = available_memory,
         .swapinfo = swapinfo,
         .commit_limit = commit_limit,
         .committed_memory = committed_memory,
         .uncommitted_memory = uncommitted_memory
     };
 
+    return info;
     return info;
 }

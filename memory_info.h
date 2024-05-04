@@ -12,6 +12,8 @@ typedef struct {
     unsigned long long app_memory;
     unsigned long long cached_memory;
     unsigned long long used_memory;
+    unsigned long long shared_memory;
+    unsigned long long available_memory;
     struct xsw_usage swapinfo;
     unsigned long long commit_limit;
     unsigned long long committed_memory;

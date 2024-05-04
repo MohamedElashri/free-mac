@@ -1,25 +1,3 @@
-/*
- * Copyright (c) 2024 Mohamed Elashri
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -70,17 +48,17 @@ int main(int argc, char *argv[]) {
     int option_index = 0;
     while ((opt = getopt_long(argc, argv, "bkmgepKMGTPhwc:lLs:StvV?", long_options, &option_index)) != -1) {
         switch (opt) {
-            case 'b': unit = 0; break;
-            case 'k': unit = 1; break;
-            case 'm': unit = 2; break;
-            case 'g': unit = 3; break;
-            case 'e': unit = 4; break;
-            case 'p': unit = 5; break;
-            case 'K': si = 1; unit = 1; break;
-            case 'M': si = 1; unit = 2; break;
-            case 'G': si = 1; unit = 3; break;
-            case 'T': si = 1; unit = 4; break;
-            case 'P': si = 1; unit = 5; break;
+            case 'b': unit = 0; si = 0; break;
+            case 'k': unit = 1; si = 0; break;
+            case 'm': unit = 2; si = 0; break;
+            case 'g': unit = 3; si = 0; break;
+            case 'e': unit = 4; si = 0; break;
+            case 'p': unit = 5; si = 0; break;
+            case 'K': unit = 1; si = 1; break;
+            case 'M': unit = 2; si = 1; break;
+            case 'G': unit = 3; si = 1; break;
+            case 'T': unit = 4; si = 1; break;
+            case 'P': unit = 5; si = 1; break;
             case 'h': human = 1; break;
             case 'w': wide = 1; break;
             case 'c': count = atoi(optarg); break;
@@ -127,38 +105,44 @@ int main(int argc, char *argv[]) {
     MemoryInfo info = get_memory_info();
 
     // Formatting memory sizes
-    char totalStr[20], usedStr[20], freeStr[20], cachedStr[20], appStr[20], wiredStr[20];
+    char totalStr[20], usedStr[20], freeStr[20], sharedStr[20], buffCacheStr[20], availableStr[20];
     char swapTotalStr[20], swapUsedStr[20], swapFreeStr[20];
     char commitLimitStr[20], committedStr[20], uncommittedStr[20];
 
-    format_bytes(info.total_memory, totalStr, sizeof(totalStr), human, si, unit);
-    format_bytes(info.used_memory, usedStr, sizeof(usedStr), human, si, unit);
-    format_bytes(info.free_memory, freeStr, sizeof(freeStr), human, si, unit);
-    format_bytes(info.cached_memory, cachedStr, sizeof(cachedStr), human, si, unit);
-    format_bytes(info.app_memory, appStr, sizeof(appStr), human, si, unit);
-    format_bytes(info.wired_memory, wiredStr, sizeof(wiredStr), human, si, unit);
-    format_bytes(info.swapinfo.xsu_total, swapTotalStr, sizeof(swapTotalStr), human, si, unit);
-    format_bytes(info.swapinfo.xsu_used, swapUsedStr, sizeof(swapUsedStr), human, si, unit);
-    format_bytes(info.swapinfo.xsu_avail, swapFreeStr, sizeof(swapFreeStr), human, si, unit);
-    format_bytes(info.commit_limit, commitLimitStr, sizeof(commitLimitStr), human, si, unit);
-    format_bytes(info.committed_memory, committedStr, sizeof(committedStr), human, si, unit);
-    format_bytes(info.uncommitted_memory, uncommittedStr, sizeof(uncommittedStr), human, si, unit);
+    format_bytes(info.total_memory, totalStr, sizeof(totalStr), human, si, human ? 0 : unit);
+    format_bytes(info.used_memory, usedStr, sizeof(usedStr), human, si, human ? 0 : unit);
+    format_bytes(info.free_memory, freeStr, sizeof(freeStr), human, si, human ? 0 : unit);
+    format_bytes(info.shared_memory, sharedStr, sizeof(sharedStr), human, si, human ? 0 : unit);
+    format_bytes(info.cached_memory, buffCacheStr, sizeof(buffCacheStr), human, si, human ? 0 : unit);
+    format_bytes(info.available_memory, availableStr, sizeof(availableStr), human, si, human ? 0 : unit);
+    format_bytes(info.swapinfo.xsu_total, swapTotalStr, sizeof(swapTotalStr), human, si, human ? 0 : unit);
+    format_bytes(info.swapinfo.xsu_used, swapUsedStr, sizeof(swapUsedStr), human, si, human ? 0 : unit);
+    format_bytes(info.swapinfo.xsu_avail, swapFreeStr, sizeof(swapFreeStr), human, si, human ? 0 : unit);
+    format_bytes(info.commit_limit, commitLimitStr, sizeof(commitLimitStr), human, si, human ? 0 : unit);
+    format_bytes(info.committed_memory, committedStr, sizeof(committedStr), human, si, human ? 0 : unit);
+    format_bytes(info.uncommitted_memory, uncommittedStr, sizeof(uncommittedStr), human, si, human ? 0 : unit);
 
     // Printing results
     for (int i = 0; i < count; i++) {
         if (line) {
-            printf("Mem: %s total, %s used, %s free, %s cached, %s app, %s wired", totalStr, usedStr, freeStr, cachedStr, appStr, wiredStr);
+            printf("Mem: %s total, %s used, %s free, %s shared, %s buff/cache, %s available", totalStr, usedStr, freeStr, sharedStr, buffCacheStr, availableStr);
             printf("Swap: %s total, %s used, %s free", swapTotalStr, swapUsedStr, swapFreeStr);
             printf("\n");
         } else {
-            if (wide) {
-                printf("%15s %15s %15s %15s %15s %15s %15s\n", "total", "used", "free", "buff/cache", "available", "app", "wired");
-                printf("Mem: %15s %15s %15s %15s %15s %15s %15s\n", totalStr, usedStr, freeStr, cachedStr, freeStr, appStr, wiredStr);
-                printf("Swap: %14s %14s %14s\n", swapTotalStr, swapUsedStr, swapFreeStr);
+            if (human) {
+                printf("%10s %10s %10s %10s %10s %10s\n", "total", "used", "free", "shared", "buff/cache", "available");
+                printf("Mem: %10s %10s %10s %10s %10s %10s\n", totalStr, usedStr, freeStr, sharedStr, buffCacheStr, availableStr);
+                printf("Swap: %9s %10s %10s\n", swapTotalStr, swapUsedStr, swapFreeStr);
             } else {
-                printf("%15s %15s %15s %15s %15s %15s\n", "total", "used", "free", "cached", "app", "wired");
-                printf("Mem: %15s %15s %15s %15s %15s %15s\n", totalStr, usedStr, freeStr, cachedStr, appStr, wiredStr);
-                printf("Swap: %14s %14s %14s\n", swapTotalStr, swapUsedStr, swapFreeStr);
+                if (wide) {
+                    printf("%15s %15s %15s %15s %15s\n", "total", "used", "free", "buff/cache", "available");
+                    printf("Mem: %15s %15s %15s %15s %15s\n", totalStr, usedStr, freeStr, buffCacheStr, availableStr);
+                    printf("Swap: %14s %14s %14s\n", swapTotalStr, swapUsedStr, swapFreeStr);
+                } else {
+                    printf("%15s %15s %15s %15s %15s\n", "total", "used", "free", "cached", "available");
+                    printf("Mem: %15s %15s %15s %15s %15s\n", totalStr, usedStr, freeStr, buffCacheStr, availableStr);
+                    printf("Swap: %14s %14s %14s\n", swapTotalStr, swapUsedStr, swapFreeStr);
+                }
             }
 
             if (lohi) {
@@ -171,9 +155,9 @@ int main(int argc, char *argv[]) {
                 unsigned long long total_total = mem_total + swap_total;
 
                 char memTotalStr[20], swapTotalStr[20], totalTotalStr[20];
-                format_bytes(mem_total, memTotalStr, sizeof(memTotalStr), human, si, unit);
-                format_bytes(swap_total, swapTotalStr, sizeof(swapTotalStr), human, si, unit);
-                format_bytes(total_total, totalTotalStr, sizeof(totalTotalStr), human, si, unit);
+                format_bytes(mem_total, memTotalStr, sizeof(memTotalStr), human, si, human ? 0 : unit);
+                format_bytes(swap_total, swapTotalStr, sizeof(swapTotalStr), human, si, human ? 0 : unit);
+                format_bytes(total_total, totalTotalStr, sizeof(totalTotalStr), human, si, human ? 0 : unit);
 
                 printf("Total: %13s %13s %13s\n", memTotalStr, swapTotalStr, totalTotalStr);
             }
