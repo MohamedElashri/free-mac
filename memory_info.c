@@ -23,6 +23,9 @@
 
 
 #include "memory_info.h"
+#include <stdio.h>
+#include <stdlib.h>
+
 
 MemoryInfo get_memory_info() {
     mach_port_t host_port = mach_host_self();
