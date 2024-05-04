@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
 
     int opt;
     int option_index = 0;
-    while ((opt = getopt_long(argc, argv, "bkmgepKMGTPhwc:lLs:StV?", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "bkmgepKMGTPhwc:lLs:StvV?", long_options, &option_index)) != -1) {
         switch (opt) {
             case 'b': unit = 0; break;
             case 'k': unit = 1; break;
