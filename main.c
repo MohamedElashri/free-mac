@@ -122,57 +122,57 @@ int main(int argc, char *argv[]) {
     format_bytes(info.committed_memory, committedStr, sizeof(committedStr), human, si, human ? 0 : unit);
     format_bytes(info.uncommitted_memory, uncommittedStr, sizeof(uncommittedStr), human, si, human ? 0 : unit);
 
-    // Printing results
-    for (int i = 0; i < count; i++) {
-        if (line) {
-            printf("Mem: %s total, %s used, %s free, %s shared, %s buff/cache, %s available", totalStr, usedStr, freeStr, sharedStr, buffCacheStr, availableStr);
-            printf("Swap: %s total, %s used, %s free", swapTotalStr, swapUsedStr, swapFreeStr);
-            printf("\n");
+// Printing results
+for (int i = 0; i < count; i++) {
+    if (line) {
+        printf("Mem:  %10s %10s %10s %10s %10s %10s", totalStr, usedStr, freeStr, sharedStr, buffCacheStr, availableStr);
+        printf("Swap: %10s %10s %10s", swapTotalStr, swapUsedStr, swapFreeStr);
+        printf("\n");
+    } else {
+        if (human) {
+            printf("      %10s %10s %10s %10s %10s %10s\n", "total", "used", "free", "shared", "buff/cache", "available");
+            printf("Mem:  %10s %10s %10s %10s %10s %10s\n", totalStr, usedStr, freeStr, sharedStr, buffCacheStr, availableStr);
+            printf("Swap: %10s %10s %10s\n", swapTotalStr, swapUsedStr, swapFreeStr);
         } else {
-            if (human) {
-                printf("%10s %10s %10s %10s %10s %10s\n", "total", "used", "free", "shared", "buff/cache", "available");
-                printf("Mem: %10s %10s %10s %10s %10s %10s\n", totalStr, usedStr, freeStr, sharedStr, buffCacheStr, availableStr);
-                printf("Swap: %9s %10s %10s\n", swapTotalStr, swapUsedStr, swapFreeStr);
+            if (wide) {
+                printf("      %15s %15s %15s %15s %15s\n", "total", "used", "free", "buff/cache", "available");
+                printf("Mem:  %15s %15s %15s %15s %15s\n", totalStr, usedStr, freeStr, buffCacheStr, availableStr);
+                printf("Swap: %15s %15s %15s\n", swapTotalStr, swapUsedStr, swapFreeStr);
             } else {
-                if (wide) {
-                    printf("%15s %15s %15s %15s %15s\n", "total", "used", "free", "buff/cache", "available");
-                    printf("Mem: %15s %15s %15s %15s %15s\n", totalStr, usedStr, freeStr, buffCacheStr, availableStr);
-                    printf("Swap: %14s %14s %14s\n", swapTotalStr, swapUsedStr, swapFreeStr);
-                } else {
-                    printf("%15s %15s %15s %15s %15s\n", "total", "used", "free", "cached", "available");
-                    printf("Mem: %15s %15s %15s %15s %15s\n", totalStr, usedStr, freeStr, buffCacheStr, availableStr);
-                    printf("Swap: %14s %14s %14s\n", swapTotalStr, swapUsedStr, swapFreeStr);
-                }
-            }
-
-            if (lohi) {
-                // TODO: Implement low and high memory statistics
-            }
-
-            if (total) {
-                unsigned long long mem_total = info.total_memory;
-                unsigned long long swap_total = info.swapinfo.xsu_total;
-                unsigned long long total_total = mem_total + swap_total;
-
-                char memTotalStr[20], swapTotalStr[20], totalTotalStr[20];
-                format_bytes(mem_total, memTotalStr, sizeof(memTotalStr), human, si, human ? 0 : unit);
-                format_bytes(swap_total, swapTotalStr, sizeof(swapTotalStr), human, si, human ? 0 : unit);
-                format_bytes(total_total, totalTotalStr, sizeof(totalTotalStr), human, si, human ? 0 : unit);
-
-                printf("Total: %13s %13s %13s\n", memTotalStr, swapTotalStr, totalTotalStr);
-            }
-
-            if (committed) {
-                printf("Commit Limit: %15s\n", commitLimitStr);
-                printf("Committed: %18s\n", committedStr);
-                printf("Uncommitted: %16s\n", uncommittedStr);
+                printf("      %15s %15s %15s %15s %15s\n", "total", "used", "free", "cached", "available");
+                printf("Mem:  %15s %15s %15s %15s %15s\n", totalStr, usedStr, freeStr, buffCacheStr, availableStr);
+                printf("Swap: %15s %15s %15s\n", swapTotalStr, swapUsedStr, swapFreeStr);
             }
         }
 
-        if (i < count - 1) {
-            sleep(delay);
+        if (lohi) {
+            // TODO: Implement low and high memory statistics
+        }
+
+        if (total) {
+            unsigned long long mem_total = info.total_memory;
+            unsigned long long swap_total = info.swapinfo.xsu_total;
+            unsigned long long total_total = mem_total + swap_total;
+
+            char memTotalStr[20], swapTotalStr[20], totalTotalStr[20];
+            format_bytes(mem_total, memTotalStr, sizeof(memTotalStr), human, si, human ? 0 : unit);
+            format_bytes(swap_total, swapTotalStr, sizeof(swapTotalStr), human, si, human ? 0 : unit);
+            format_bytes(total_total, totalTotalStr, sizeof(totalTotalStr), human, si, human ? 0 : unit);
+
+            printf("      %10s %10s %10s\n", "Mem", "Swap", "Total");
+            printf("Total %10s %10s %10s\n", memTotalStr, swapTotalStr, totalTotalStr);
+        }
+
+        if (committed) {
+            printf("Commit Limit:  %10s\n", commitLimitStr);
+            printf("Committed:     %10s\n", committedStr);
+            printf("Uncommitted:   %10s\n", uncommittedStr);
         }
     }
 
+    if (i < count - 1) {
+        sleep(delay);
+    }
+}
     return 0;
 }
