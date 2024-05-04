@@ -14,10 +14,10 @@ test: LDFLAGS += -fsanitize=address
 test: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
-    $(CC) $(LDFLAGS) $(OBJECTS) -o $@
+<tab>$(CC) $(LDFLAGS) $(OBJECTS) -o $@
 
 .c.o:
-    $(CC) -c $(CFLAGS) $< -o $@
+<tab>$(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-    rm -f $(OBJECTS) $(EXECUTABLE)
+<tab>rm -f $(OBJECTS) $(EXECUTABLE)
