@@ -17,3 +17,8 @@ jobs:
       run: make test
     - name: Run the tool
       run: ./free
+    - uses: actions/upload-artifact@v4
+      name: Upload the binary
+      with:
+        name: free-0.1-${{ github.run_number }}
+        path: ${{ github.workspace }}/publish/*
