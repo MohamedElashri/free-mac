@@ -34,7 +34,7 @@
  #include <stdarg.h>
  
  /* Constants */
- #define PROGRAM_VERSION "0.1.2"
+ #define PROGRAM_VERSION "0.3"
  #define MEMORY_STRING_BUFFER_SIZE 32
  #define MAX_COUNT_VALUE 1000
  #define MAX_DELAY_VALUE 3600.0  /* Maximum delay of 1 hour */
