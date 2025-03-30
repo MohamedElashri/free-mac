@@ -7,7 +7,7 @@ LDFLAGS =
 
 # Project files
 TARGET = free
-TARGET_TEST = $(TARGET)_test
+TARGET_TEST = $(TARGET) 	
 SRCS = free.c 
 OBJS = $(SRCS:.c=.o)
 OBJS_TEST = $(SRCS:.c=.o.test)
@@ -37,4 +37,4 @@ $(TARGET_TEST): $(OBJS_TEST)
 
 # Clean target
 clean:
-	rm -f $(OBJS) $(TARGET) $(OBJS_TEST) $(TARGET_TEST)
+	rm -f $(TARGET) $(OBJS) $(OBJS_TEST)
