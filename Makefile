@@ -1,23 +1,40 @@
-CC=gcc
-CFLAGS=-Wall -Werror
-SOURCES=free.c
-OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=free
+CC = gcc
+# Base flags
+CFLAGS = -Wall -Wextra -pedantic -O2 -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Wno-newline-eof
+# Test build flags 
+CFLAGS_TEST = $(filter-out -D_FORTIFY_SOURCE=2 -O2, $(CFLAGS)) -g -fsanitize=address -O1
+LDFLAGS =
 
-# Release build
-release: CFLAGS += -O2
-release: $(SOURCES) $(EXECUTABLE)
+# Project files
+TARGET = free
+TARGET_TEST = $(TARGET)_test
+SRCS = free.c 
+OBJS = $(SRCS:.c=.o)
+OBJS_TEST = $(SRCS:.c=.o.test)
 
-# Testing build with AddressSanitizer
-test: CFLAGS += -fsanitize=address -g
-test: LDFLAGS += -fsanitize=address
-test: $(SOURCES) $(EXECUTABLE)
+.PHONY: all release test clean
 
-$(EXECUTABLE): $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+# Default target
+all: release
 
-.c.o:
-	$(CC) -c $(CFLAGS) $< -o $@
+# Release build targets
+release: $(TARGET)
 
+$(TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Test build targets (with AddressSanitizer)
+test: $(TARGET_TEST)
+
+$(TARGET_TEST): $(OBJS_TEST)
+	$(CC) $(LDFLAGS) -fsanitize=address -o $@ $^
+
+%.o.test: %.c
+	$(CC) $(CFLAGS_TEST) -c $< -o $@ # Use dedicated test flags
+
+# Clean target
 clean:
-	rm -f $(OBJECTS) $(EXECUTABLE)
+	rm -f $(OBJS) $(TARGET) $(OBJS_TEST) $(TARGET_TEST)
