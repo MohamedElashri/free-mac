@@ -3,7 +3,7 @@ CC = gcc
 # Detect if we're using GCC or Clang
 COMPILER_TYPE := $(shell $(CC) --version 2>&1 | grep -q clang && echo "clang" || echo "gcc")
 
-# Common base flags for both compilers
+# Common base flags that work on most compilers
 CFLAGS_BASE = -Wall -Wextra -pedantic -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
               -Werror=format-security -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
               -fPIE -fstack-protector-strong \
@@ -18,9 +18,9 @@ endif
 
 # Add Clang-specific flags
 ifeq ($(COMPILER_TYPE),clang)
-    # Clang equivalents where available
-    CFLAGS_BASE += -Wbidi-characters
-    # Note: Clang doesn't support fstack-clash-protection, strict-flex-arrays=3, etc.
+    # Clang has different flag support depending on version
+    # Safer to omit problematic flags than causing build failures
+    # Removed: -Wbidi-characters as it's not universally supported
 endif
 
 # Base linker flags with security enhancements
@@ -46,9 +46,17 @@ TARGET = free
 SRCS = free.c 
 OBJS = $(SRCS:.c=.o)
 
-# Release build flags (production code)
-CFLAGS = $(CFLAGS_BASE) -O2 -fno-delete-null-pointer-checks -fno-strict-overflow \
-         -fno-strict-aliasing -ftrivial-auto-var-init=zero
+# Release build flags (production code) - compiler neutral approach
+CFLAGS = $(CFLAGS_BASE) -O2
+ifeq ($(COMPILER_TYPE),gcc)
+    # GCC-specific production flags
+    CFLAGS += -fno-delete-null-pointer-checks -fno-strict-overflow \
+              -fno-strict-aliasing -ftrivial-auto-var-init=zero
+else
+    # Clang-specific production flags (a subset that should work on most versions)
+    CFLAGS += -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing
+    # Note: -ftrivial-auto-var-init=zero may not be supported in all Clang versions
+endif
 
 LDFLAGS = $(LDFLAGS_BASE)
 
