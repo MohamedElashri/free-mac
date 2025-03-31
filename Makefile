@@ -1,11 +1,27 @@
 CC = gcc
 
-# Base flags with enhanced security
+# Detect if we're using GCC or Clang
+COMPILER_TYPE := $(shell $(CC) --version 2>&1 | grep -q clang && echo "clang" || echo "gcc")
+
+# Common base flags for both compilers
 CFLAGS_BASE = -Wall -Wextra -pedantic -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
-              -Werror=format-security -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS \
-              -fPIE -fstrict-flex-arrays=3 -fstack-clash-protection -fstack-protector-strong \
+              -Werror=format-security -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
+              -fPIE -fstack-protector-strong \
               -Werror=implicit -Werror=incompatible-pointer-types -Werror=int-conversion \
-              -Wtrampolines -Wbidi-chars=any -Wno-newline-eof
+              -Wno-newline-eof
+
+# Add GCC-specific flags
+ifeq ($(COMPILER_TYPE),gcc)
+    CFLAGS_BASE += -D_GLIBCXX_ASSERTIONS -fstrict-flex-arrays=3 -fstack-clash-protection \
+                  -Wtrampolines -Wbidi-chars=any
+endif
+
+# Add Clang-specific flags
+ifeq ($(COMPILER_TYPE),clang)
+    # Clang equivalents where available
+    CFLAGS_BASE += -Wbidi-characters
+    # Note: Clang doesn't support fstack-clash-protection, strict-flex-arrays=3, etc.
+endif
 
 # Base linker flags with security enhancements
 LDFLAGS_BASE = -pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
