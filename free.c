@@ -415,12 +415,6 @@
              log_message(FATAL, "cannot get vm statistics\n");
          }
          
-         /* Validate memory counts to prevent integer overflow */
-         if (vm_stat.free_count < vm_stat.speculative_count) {
-             log_message(ERROR, "invalid memory counts\n");
-             CLEANUP_AND_EXIT(EXIT_FAILURE);
-         }
-         
          /* Calculate memory components with overflow checking */
          unsigned long long total_memory = hostInfo.max_mem;
          
@@ -428,26 +422,36 @@
          if ((unsigned long long)vm_stat.free_count > ULLONG_MAX / page_size ||
              (unsigned long long)vm_stat.speculative_count > ULLONG_MAX / page_size ||
              (unsigned long long)vm_stat.wire_count > ULLONG_MAX / page_size ||
-             (unsigned long long)vm_stat.internal_page_count > ULLONG_MAX / page_size ||
-             (unsigned long long)vm_stat.purgeable_count > ULLONG_MAX / page_size ||
-             (unsigned long long)vm_stat.external_page_count > ULLONG_MAX / page_size) {
+             (unsigned long long)vm_stat.active_count > ULLONG_MAX / page_size ||
+             (unsigned long long)vm_stat.inactive_count > ULLONG_MAX / page_size ||
+             (unsigned long long)vm_stat.compressor_page_count > ULLONG_MAX / page_size) {
              log_message(FATAL, "integer overflow in memory calculation\n");
          }
          
-         unsigned long long free_memory = (unsigned long long)(vm_stat.free_count - vm_stat.speculative_count) * page_size;
+         unsigned long long free_memory = (unsigned long long)vm_stat.free_count * page_size;
          unsigned long long wired_memory = (unsigned long long)vm_stat.wire_count * page_size;
-         unsigned long long app_memory = (unsigned long long)(vm_stat.internal_page_count - vm_stat.purgeable_count) * page_size;
-         unsigned long long cached_memory = (unsigned long long)(vm_stat.purgeable_count + vm_stat.external_page_count) * page_size;
+         unsigned long long active_memory = (unsigned long long)vm_stat.active_count * page_size;
+         unsigned long long inactive_memory = (unsigned long long)vm_stat.inactive_count * page_size;
+         unsigned long long speculative_memory = (unsigned long long)vm_stat.speculative_count * page_size;
+         unsigned long long compressor_memory = (unsigned long long)vm_stat.compressor_page_count * page_size;
          
-         /* Guard against overflow in subtraction */
-         if (total_memory < free_memory + cached_memory) {
-             log_message(ERROR, "memory calculation error\n");
-             CLEANUP_AND_EXIT(EXIT_FAILURE);
-         }
+         /* Used = Wired + Active + Inactive (pattern from XNU source) */
+         unsigned long long used_memory = wired_memory + active_memory + inactive_memory;
          
-         unsigned long long used_memory = total_memory - free_memory - cached_memory;
+         /* Buff/cache = Speculative (reclaimable memory) */
+         unsigned long long cached_memory = speculative_memory;
          
-         /* Get swap information safely */
+         /* Available = Free + Speculative (memory available for applications) */
+        unsigned long long available_memory = free_memory + speculative_memory;
+        
+        log_message(DEBUG, "free_count=%llu, speculative_count=%llu, active_count=%llu, inactive_count=%llu, wire_count=%llu\n",
+                   (unsigned long long)vm_stat.free_count, (unsigned long long)vm_stat.speculative_count,
+                   (unsigned long long)vm_stat.active_count, (unsigned long long)vm_stat.inactive_count,
+                   (unsigned long long)vm_stat.wire_count);
+        log_message(DEBUG, "free_memory=%llu, cached_memory=%llu, available_memory=%llu, used_memory=%llu\n",
+                   free_memory, cached_memory, available_memory, used_memory);
+        
+        /* Get swap information safely */
          struct xsw_usage swapinfo = {0};
          size_t swapinfo_sz = sizeof(swapinfo);
          int mib[2] = {CTL_VM, VM_SWAPUSAGE};
@@ -476,7 +480,7 @@
          /* Formatting memory sizes with consistent buffer sizes */
          char totalStr[MEMORY_STRING_BUFFER_SIZE], usedStr[MEMORY_STRING_BUFFER_SIZE], 
               freeStr[MEMORY_STRING_BUFFER_SIZE], cachedStr[MEMORY_STRING_BUFFER_SIZE], 
-              appStr[MEMORY_STRING_BUFFER_SIZE], wiredStr[MEMORY_STRING_BUFFER_SIZE];
+              availableStr[MEMORY_STRING_BUFFER_SIZE], compressorStr[MEMORY_STRING_BUFFER_SIZE];
          char swapTotalStr[MEMORY_STRING_BUFFER_SIZE], swapUsedStr[MEMORY_STRING_BUFFER_SIZE], 
               swapFreeStr[MEMORY_STRING_BUFFER_SIZE];
          char commitLimitStr[MEMORY_STRING_BUFFER_SIZE], committedStr[MEMORY_STRING_BUFFER_SIZE], 
@@ -487,8 +491,8 @@
              formatBytes(used_memory, usedStr, sizeof(usedStr), human, si, unit) < 0 ||
              formatBytes(free_memory, freeStr, sizeof(freeStr), human, si, unit) < 0 ||
              formatBytes(cached_memory, cachedStr, sizeof(cachedStr), human, si, unit) < 0 ||
-             formatBytes(app_memory, appStr, sizeof(appStr), human, si, unit) < 0 ||
-             formatBytes(wired_memory, wiredStr, sizeof(wiredStr), human, si, unit) < 0 ||
+             formatBytes(available_memory, availableStr, sizeof(availableStr), human, si, unit) < 0 ||
+             formatBytes(compressor_memory, compressorStr, sizeof(compressorStr), human, si, unit) < 0 ||
              formatBytes(swapinfo.xsu_total, swapTotalStr, sizeof(swapTotalStr), human, si, unit) < 0 ||
              formatBytes(swapinfo.xsu_used, swapUsedStr, sizeof(swapUsedStr), human, si, unit) < 0 ||
              formatBytes(swapinfo.xsu_avail, swapFreeStr, sizeof(swapFreeStr), human, si, unit) < 0 ||
@@ -506,96 +510,101 @@
          if (line) {
              /* Single line output format, Linux free-like */
              printf("Mem: %s total, %s used, %s free, %s shared, %s buff/cache, %s available\n", 
-                    totalStr, usedStr, freeStr, "0B", cachedStr, freeStr);
+                    totalStr, usedStr, freeStr, "0B", cachedStr, availableStr);
              printf("Swap: %s total, %s used, %s free\n", 
                     swapTotalStr, swapUsedStr, swapFreeStr);
+             printf("Compressor: %s\n", compressorStr);
          } else {
              /* Standard multi-line output format matching Linux free */
              if (wide) {
-                 /* Linux free -w format */
-                 printf("%-7s %11s %11s %11s %11s %11s %11s %11s\n",
+                 /* Linux free -w format - but we use speculative as cache on macOS */
+                 printf("%-11s %11s %11s %11s %11s %11s %11s %11s\n",
                         "", "total", "used", "free", "shared", "buffers", "cache", "available");
-                 /* Use app_memory and wired_memory as buffers and cache for Linux-like output */
-                 printf("%-7s %11s %11s %11s %11s %11s %11s %11s\n", 
-                        "Mem:", totalStr, usedStr, freeStr, "0B", appStr, cachedStr, freeStr);
-                 printf("%-7s %11s %11s %11s\n", 
+                 /* On macOS: buffers=0, cache=speculative */
+                 printf("%-11s %11s %11s %11s %11s %11s %11s %11s\n", 
+                        "Mem:", totalStr, usedStr, freeStr, "0B", "0B", cachedStr, availableStr);
+                 printf("%-11s %11s %11s %11s\n", 
                         "Swap:", swapTotalStr, swapUsedStr, swapFreeStr);
+                 printf("%-11s %11s\n", 
+                        "Compressor:", compressorStr);
              } else {
                  /* Standard Linux free format */
-                 printf("%-7s %11s %11s %11s %11s %11s %11s\n",
+                 printf("%-11s %11s %11s %11s %11s %11s %11s\n",
                         "", "total", "used", "free", "shared", "buff/cache", "available");
-                 printf("%-7s %11s %11s %11s %11s %11s %11s\n", 
-                        "Mem:", totalStr, usedStr, freeStr, "0B", cachedStr, freeStr);
-                 printf("%-7s %11s %11s %11s\n", 
+                 printf("%-11s %11s %11s %11s %11s %11s %11s\n", 
+                        "Mem:", totalStr, usedStr, freeStr, "0B", cachedStr, availableStr);
+                 printf("%-11s %11s %11s %11s\n", 
                         "Swap:", swapTotalStr, swapUsedStr, swapFreeStr);
-             }
-             
-             /* Optional: low and high memory statistics */
-             if (lohi) {
-                 if (debug) {
-                     log_message(DEBUG, "Low/high memory statistics not implemented\n");
-                 }
-             }
-             
-             /* Optional: total statistics (matching Linux free -t format) */
-             if (total) {
-                 unsigned long long mem_total = total_memory;
-                 unsigned long long swap_total = swapinfo.xsu_total;
-                 
-                 /* Check for potential overflow */
-                 if (ULLONG_MAX - mem_total < swap_total) {
-                     log_message(ERROR, "integer overflow in total calculation\n");
-                 } else {
-                     unsigned long long total_total = mem_total + swap_total;
-                     
-                     /* Format total values consistent with Linux free -t */
-                     char totalTotalStr[MEMORY_STRING_BUFFER_SIZE];
-                     char totalUsedStr[MEMORY_STRING_BUFFER_SIZE];
-                     char totalFreeStr[MEMORY_STRING_BUFFER_SIZE];
-                     
-                     unsigned long long total_used = used_memory + swapinfo.xsu_used;
-                     unsigned long long total_free = free_memory + swapinfo.xsu_avail;
-                     
-                     if (formatBytes(total_total, totalTotalStr, sizeof(totalTotalStr), human, si, unit) < 0 ||
-                         formatBytes(total_used, totalUsedStr, sizeof(totalUsedStr), human, si, unit) < 0 ||
-                         formatBytes(total_free, totalFreeStr, sizeof(totalFreeStr), human, si, unit) < 0) {
-                         log_message(ERROR, "error formatting total values\n");
-                     } else {
-                         if (wide) {
-                             /* Match the column width of the main output */
-                             printf("%-7s %11s %11s %11s %11s %11s %11s %11s\n",
-                                    "Total:", totalTotalStr, totalUsedStr, totalFreeStr, 
-                                    "", "", "", "");
-                         } else {
-                             printf("%-7s %11s %11s %11s %11s %11s %11s\n",
-                                    "Total:", totalTotalStr, totalUsedStr, totalFreeStr, 
-                                    "", "", "");
-                         }
-                     }
-                 }
-             }
-             
-             /* Optional: memory commitment information (matching Linux free -v format) */
-             if (committed) {
-                 /* Calculate percentage - Linux free shows "% of limit" */
-                 double percent = 0;
-                 if (commit_limit > 0) {
-                     percent = ((double)committed_memory / commit_limit) * 100.0;
-                 }
-                 
-                 /* Match Linux free output format exactly */
-                 printf("%-15s %11s\n", "Mem. Limit:", commitLimitStr);
-                 printf("%-15s %11s = %.1f%% of limit\n", "Committed:", committedStr, percent);
-             }
-         }
+                 printf("%-11s %11s\n", 
+                       "Compressor:", compressorStr);
+            }
+            
+            /* Optional: low and high memory statistics */
+            if (lohi) {
+                if (debug) {
+                    log_message(DEBUG, "Low/high memory statistics not implemented\n");
+                }
+            }
+            
+            /* Optional: total statistics (matching Linux free -t format) */
+            if (total) {
+                unsigned long long mem_total = total_memory;
+                unsigned long long swap_total = swapinfo.xsu_total;
+                
+                /* Check for potential overflow */
+                if (ULLONG_MAX - mem_total < swap_total) {
+                    log_message(ERROR, "integer overflow in total calculation\n");
+                } else {
+                    unsigned long long total_total = mem_total + swap_total;
+                    
+                    /* Format total values consistent with Linux free -t */
+                    char totalTotalStr[MEMORY_STRING_BUFFER_SIZE];
+                    char totalUsedStr[MEMORY_STRING_BUFFER_SIZE];
+                    char totalFreeStr[MEMORY_STRING_BUFFER_SIZE];
+                    
+                    unsigned long long total_used = used_memory + swapinfo.xsu_used;
+                    unsigned long long total_free = free_memory + swapinfo.xsu_avail;
+                    
+                    if (formatBytes(total_total, totalTotalStr, sizeof(totalTotalStr), human, si, unit) < 0 ||
+                        formatBytes(total_used, totalUsedStr, sizeof(totalUsedStr), human, si, unit) < 0 ||
+                        formatBytes(total_free, totalFreeStr, sizeof(totalFreeStr), human, si, unit) < 0) {
+                        log_message(ERROR, "error formatting total values\n");
+                    } else {
+                        if (wide) {
+                            /* Match the column width of the main output */
+                            printf("%-11s %11s %11s %11s %11s %11s %11s %11s\n",
+                                   "Total:", totalTotalStr, totalUsedStr, totalFreeStr, 
+                                   "", "", "", "");
+                        } else {
+                            printf("%-11s %11s %11s %11s %11s %11s %11s\n",
+                                   "Total:", totalTotalStr, totalUsedStr, totalFreeStr, 
+                                   "", "", "");
+                        }
+                    }
+                }
+            }
+            
+            /* Optional: memory commitment information (matching Linux free -v format) */
+            if (committed) {
+                /* Calculate percentage - Linux free shows "% of limit" */
+                double percent = 0;
+                if (commit_limit > 0) {
+                    percent = ((double)committed_memory / commit_limit) * 100.0;
+                }
+                
+                /* Match Linux free output format exactly */
+                printf("%-15s %11s\n", "Mem. Limit:", commitLimitStr);
+                printf("%-15s %11s = %.1f%% of limit\n", "Committed:", committedStr, percent);
+            }
+        } 
          
-         /* Sleep between iterations if not the last one */
-         if (i < count - 1) {
-             sleep(delay);
-         }
-     }
-     
-     /* Clean up resources */
-     cleanup();
-     return EXIT_SUCCESS;
- }
+        /* Sleep between iterations if not the last one */
+        if (i < count - 1) {
+            sleep(delay);
+        }
+    }
+    
+    /* Clean up resources */
+    cleanup();
+    return EXIT_SUCCESS;
+}
