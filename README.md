@@ -25,12 +25,12 @@ brew install free-mac
   
 #### Compiling
 The project includes a Makefile for straightforward compilation. There are two targets:
-- `make release` for compiling the tool for production use.
+- `make` for compiling the tool for production use.
 - `make test` for compiling with AddressSanitizer for development and debugging.
 
 ##### Release Build
 ```bash
-make release
+make
 ```
 
 ##### Test Build
